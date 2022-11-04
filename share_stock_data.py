@@ -10,6 +10,27 @@ https://iss.moex.com/iss/engines/stock/markets/foreignshares.xml?iss.meta=off  -
 
 https://iss.moex.com/iss/engines/stock/markets/bonds/securities.xml?iss.meta=off - список всех облигаций
 https://iss.moex.com/iss/engines/stock/markets/bonds.xml?iss.meta=off  - справка по рынкам облигаций
+
+** Возможные значения поля SecType:
+1 - Акция обыкновенная 
+2 - Акция привилегированная 
+3 - Государственные облигации 
+4 - Региональные облигации 
+5 - Облигации центральных банков 
+6 - Корпоративные облигации 
+7 - Облигации МФО 
+8 - Биржевые облигации 
+9 - Паи открытых ПИФов 
+A - Паи интервальных ПИФов 
+B - Паи закрытых ПИФов 
+C - Муниципальные облигации 
+D - Депозитарные расписки 
+E - Бумаги иностранных инвестиционных фондов (ETF) 
+F - Ипотечный сертификат 
+G - Корзина бумаг 
+H - Доп. идентификатор списка 
+I - ETC (товарные инструменты)
+J - Пай биржевого ПИФа (Exchange Investment Unit share)
 '''
 
 
@@ -73,9 +94,23 @@ class ShareStockData:
         url = f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{self.__ticker}' \
               f'/securities.json?iss.meta=off'
         response_df = pandas.read_json(url)
-        response_df = response_df['securities']
-        self.__info_df = DataFrame(data=response_df.data, columns=response_df.columns)
+        securities_df = response_df['securities']
+        self.__info_df = DataFrame(data=securities_df.data, columns=securities_df.columns)
         self.__info_df = self.__info_df[self.__info_df['BOARDID'].isin(['TQBR'])]
+        self.__info_df = self.__info_df[['SECID', 'SHORTNAME', 'TRADEDATE']]
+        self.__info_df = self.__info_df.rename(columns={'SECID': 'ticker',
+                                                        'SHORTNAME': 'short_name',
+                                                        'SECNAME': 'long_name',
+                                                        'LOTSIZE': 'lot_size',
+                                                        'FACEVALUE': 'nominal',
+                                                        'DECIMALS': 'decimal_point',
+                                                        'ISIN': 'isin',
+                                                        'ISSUESIZE': 'num_shares',
+                                                        'MINSTEP': 'price_step',
+                                                        'CURRENCYID': 'currency',
+                                                        'SECTYPE': 'sec_type',
+                                                        'LISTLEVEL': 'list_level',
+                                                        })
         return self.__info_df
 
     def get_sec_history(self):
@@ -83,9 +118,6 @@ class ShareStockData:
 
     def get_info(self):
         return self.__info_df
-
-    def get_current_market_cap(self):
-        market_cap = self.__info_df['PREVWAPRICE'] * self.__info_df['ISSUESIZE']
 
     @staticmethod
     def get_currencies_df() -> DataFrame:
