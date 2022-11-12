@@ -2,13 +2,10 @@ import pandas
 from pandas import DataFrame
 
 '''
-https://iss.moex.com/iss/engines/stock/markets/shares/securities.xml?iss.meta=off - список всех российских акций
-https://iss.moex.com/iss/engines/stock/markets/foreignshares/securities.xml?iss.meta=off - список всех иностранных акций
-
+https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off - список российских акций
 https://iss.moex.com/iss/engines/stock/markets/shares.xml?iss.meta=off  - справка по рынкам российских акций
-https://iss.moex.com/iss/engines/stock/markets/foreignshares.xml?iss.meta=off  - справка по рынкам иностранных акций
 
-https://iss.moex.com/iss/engines/stock/markets/bonds/securities.xml?iss.meta=off - список всех облигаций
+https://iss.moex.com/iss/engines/stock/markets/bonds/securities.xml?iss.meta=off - список облигаций
 https://iss.moex.com/iss/engines/stock/markets/bonds.xml?iss.meta=off  - справка по рынкам облигаций
 
 ** Возможные значения поля SecType:
@@ -69,29 +66,14 @@ class ShareStockData:
             else:
                 self.__history_df = pandas.concat([self.__history_df, response_df])
 
-        self.__history_df = self.__history_df[[
-            'SECID', 'SHORTNAME', 'TRADEDATE', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW', 'HIGH',
-            'WAPRICE', 'CLOSE', 'VOLUME']]
-        self.__history_df = self.__history_df.rename(columns={'SECID': 'ticker',
-                                                              'SHORTNAME': 'short_name',
-                                                              'TRADEDATE': 'date',
-                                                              'NUMTRADES': 'num_trades',
-                                                              'VALUE': 'sum_per_day',
-                                                              'VOLUME': 'sec_count_per_day',
-                                                              'OPEN': 'open_price',
-                                                              'LOW': 'low_price',
-                                                              'HIGH': 'high_price',
-                                                              'WAPRICE': 'median_price',
-                                                              'CLOSE': 'close_price'
-                                                              })
         self.__history_df = self.__history_df.fillna(0)
-        null_price_index = self.__history_df[self.__history_df['sum_per_day'] == 0].index.values
+        null_price_index = self.__history_df[self.__history_df['VALUE'] == 0].index.values
         self.__history_df = self.__history_df.drop(index=null_price_index)
         self.__history_df = self.__history_df.reset_index(drop=True)
         return self.__history_df
 
     def load_info(self) -> DataFrame:
-        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{self.__ticker}' \
+        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.__ticker}' \
               f'/securities.json?iss.meta=off'
         response_df = pandas.read_json(url)
 
@@ -101,9 +83,6 @@ class ShareStockData:
         securities_df = DataFrame(data=securities_df.data, columns=securities_df.columns)
         marketdata_df = DataFrame(data=marketdata_df.data, columns=marketdata_df.columns)
 
-        securities_df = securities_df[securities_df['BOARDID'].isin(['TQBR'])]
-        marketdata_df = marketdata_df[marketdata_df['BOARDID'].isin(['TQBR'])]
-
         self.__info_df = securities_df.merge(marketdata_df)
         return self.__info_df
 
@@ -112,3 +91,17 @@ class ShareStockData:
 
     def get_info(self):
         return self.__info_df
+
+    @staticmethod
+    def load_all_info() -> DataFrame:
+        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off'
+        response_df = pandas.read_json(url)
+
+        securities_df = response_df['securities']
+        marketdata_df = response_df['marketdata']
+
+        securities_df = DataFrame(data=securities_df.data, columns=securities_df.columns)
+        marketdata_df = DataFrame(data=marketdata_df.data, columns=marketdata_df.columns)
+
+        all_info_df = securities_df.merge(marketdata_df)
+        return all_info_df
