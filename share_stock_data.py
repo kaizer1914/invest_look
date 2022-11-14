@@ -37,39 +37,35 @@ class ShareStockData:
         self.__info_df: DataFrame = DataFrame()
         self.__history_df: DataFrame = DataFrame()
 
-    def load_sec_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
+    def load_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
         start, end = '', ''
+        self.__history_df = DataFrame()
+        page: int = 0
+
         if begin_date is not None:
             start = f'&from={begin_date}'
         if end_date is not None:
             end = f'&till={end_date}'
 
-        index, page_size, total = 0, 0, 1
-        self.__history_df = None
-
-        while index + page_size <= total:
-            url = f'https://iss.moex.com/iss/history/engines/stock/markets/shares/securities/{self.__ticker}.json?' \
-                  f'iss.meta=off&start={index + page_size}{start}{end}'
+        while True:
+            url = f'https://iss.moex.com/iss/history/engines/stock/markets/shares/boards/TQBR/securities/' \
+                  f'{self.__ticker}.json?iss.meta=off&start={page}{start}{end}'
             response_df = pandas.read_json(url)
-            history_cursor = response_df['history.cursor']
-            history_cursor_df = DataFrame(data=history_cursor.data, columns=history_cursor.columns)
-
-            index = history_cursor_df['INDEX'].values[0]
-            page_size = history_cursor_df['PAGESIZE'].values[0]
-            total = history_cursor_df['TOTAL'].values[0]
-
             history = response_df['history']
             response_df = DataFrame(data=history.data, columns=history.columns)
-            response_df = response_df[response_df['BOARDID'].isin(['TQBR'])]
-            if self.__history_df is None:
+            if response_df.empty:
+                break
+            else:
+                page += 100
+            print(page)
+
+            if self.__history_df.empty:
                 self.__history_df = response_df
             else:
                 self.__history_df = pandas.concat([self.__history_df, response_df])
 
-        self.__history_df = self.__history_df.fillna(0)
-        null_price_index = self.__history_df[self.__history_df['VALUE'] == 0].index.values
-        self.__history_df = self.__history_df.drop(index=null_price_index)
-        self.__history_df = self.__history_df.reset_index(drop=True)
+        self.__history_df.fillna(0, inplace=True)
+        self.__history_df.reset_index(drop=True, inplace=True)
         return self.__history_df
 
     def load_info(self) -> DataFrame:
@@ -86,7 +82,7 @@ class ShareStockData:
         self.__info_df = securities_df.merge(marketdata_df)
         return self.__info_df
 
-    def get_sec_history(self):
+    def get_history(self):
         return self.__history_df
 
     def get_info(self):
