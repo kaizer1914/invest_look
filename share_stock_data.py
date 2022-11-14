@@ -57,7 +57,6 @@ class ShareStockData:
                 break
             else:
                 page += 100
-            print(page)
 
             if self.__history_df.empty:
                 self.__history_df = response_df
