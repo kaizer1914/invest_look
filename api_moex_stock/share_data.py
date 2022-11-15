@@ -31,7 +31,7 @@ J - Пай биржевого ПИФа (Exchange Investment Unit share)
 '''
 
 
-class ShareStockData:
+class ShareData:
     def __init__(self, ticker: str):
         self.__ticker: str = ticker.upper()
         self.__info_df: DataFrame = DataFrame()
@@ -81,10 +81,10 @@ class ShareStockData:
         self.__info_df = securities_df.merge(marketdata_df)
         return self.__info_df
 
-    def get_history(self):
+    def get_history(self) -> DataFrame:
         return self.__history_df
 
-    def get_info(self):
+    def get_info(self) -> DataFrame:
         return self.__info_df
 
     @staticmethod

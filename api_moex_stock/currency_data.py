@@ -2,7 +2,7 @@ import pandas
 from pandas import DataFrame
 
 
-class CurrencyStockData:
+class CurrencyData:
 
     @staticmethod
     def get_currencies_df() -> DataFrame:
@@ -18,7 +18,7 @@ class CurrencyStockData:
         first_currency = first_currency.upper()
         second_currency = second_currency.upper()
         currencies_par = first_currency + '/' + second_currency  # Валютная пара, которая интересует
-        cur_df = CurrencyStockData.get_currencies_df()  # Получаем датафрейм с валютами с Мосбиржи
+        cur_df = CurrencyData.get_currencies_df()  # Получаем датафрейм с валютами с Мосбиржи
         cur_df = cur_df[cur_df['secid'].isin([currencies_par])]  # Находим строку в датафрейме с валютной парой
         course = cur_df['rate'].values[0]  # Извлекаем значение курса из строки
         return course

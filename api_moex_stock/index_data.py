@@ -2,7 +2,7 @@ import pandas
 from pandas import DataFrame
 
 
-class IndexStockData:
+class IndexData:
     def __init__(self, ticker: str):
         self.__ticker: str = ticker.upper()
         self.__info_df: DataFrame = DataFrame()
@@ -28,7 +28,6 @@ class IndexStockData:
                 break
             else:
                 page += 100
-            print(page)
 
             if self.__history_df.empty:
                 self.__history_df = response_df
