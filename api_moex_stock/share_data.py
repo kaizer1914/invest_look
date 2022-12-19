@@ -63,8 +63,12 @@ class ShareData:
             else:
                 self.__history_df = pandas.concat([self.__history_df, response_df])
 
-        self.__history_df.fillna(0, inplace=True)
-        self.__history_df.reset_index(drop=True, inplace=True)
+        # Преобразуем полученный датафрейм
+        self.__history_df = self.__history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW',
+                                               'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
+        self.__history_df = self.__history_df.astype({'TRADEDATE': 'datetime64'})
+        # self.__history_df.fillna(0, inplace=True)
+        # self.__history_df.reset_index(drop=True, inplace=True)
         return self.__history_df
 
     def load_info(self) -> DataFrame:
@@ -79,6 +83,13 @@ class ShareData:
         marketdata_df = DataFrame(data=marketdata_df.data, columns=marketdata_df.columns)
 
         self.__info_df = securities_df.merge(marketdata_df)
+
+        # Преобразуем полученный датафрейм
+        self.__info_df = self.__info_df[['SECID', 'SHORTNAME', 'LOTSIZE', 'FACEVALUE', 'DECIMALS', 'SECNAME', 'MINSTEP',
+                                         'FACEUNIT', 'ISSUESIZE', 'ISIN', 'CURRENCYID', 'LISTLEVEL', 'OPEN', 'LOW',
+                                         'HIGH', 'LAST', 'WAPRICE', 'NUMTRADES', 'VOLTODAY', 'VALTODAY', 'VALTODAY_RUR',
+                                         'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
+                                         'ISSUECAPITALIZATION']]
         return self.__info_df
 
     def get_history(self) -> DataFrame:
