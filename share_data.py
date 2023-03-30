@@ -98,6 +98,14 @@ class ShareData:
     def get_info(self) -> DataFrame:
         return self.__info_df
 
+    def get_last_deviation(self) -> int:
+        med = self.get_history()['WAPRICE'].median()
+        res: int = round(self.get_last_price() / med * 100 - 50)
+        return res
+
+    def get_last_price(self) -> float:
+        return self.get_info()['LAST'].values[0]
+
     @staticmethod
     def load_all_info() -> DataFrame:
         url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off'
