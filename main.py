@@ -4,7 +4,6 @@ ticker: str = str(input("Биржевой тикер: "))
 begin_date = str(input("Начальная дата yyyy-mm-dd: "))
 end_date = str(input("Конечная дата yyyy-mm-dd: "))
 
-ticker.upper()
 share = ShareData(ticker)
 history = share.load_history(begin_date, end_date)
 info = share.load_info()
