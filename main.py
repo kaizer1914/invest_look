@@ -9,8 +9,8 @@ begin_date = date(date.today().year - years, date.today().month, date.today().da
 share = ShareData(ticker)
 history = share.load_history(begin_date)
 
-print(f"Последняя цена: {share.get_last_price()}, {share.get_last_deviation()}%")
-print(share.get_info()['ISSUECAPITALIZATION'].values[0])
+print(f"Текущая цена: {share.get_current_price()}, {share.get_current_deviation()}%")
+print(f"Текущая капитализация: {share.get_current_market_cap()}")
 
 if input("Любая клавиша для выхода"):
     exit(0)
