@@ -69,6 +69,12 @@ class ShareData:
         self.__history_df = self.__history_df.astype({'TRADEDATE': 'datetime64'})
         # self.__history_df.fillna(0, inplace=True)
         # self.__history_df.reset_index(drop=True, inplace=True)
+        
+        # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
+        def divide(a: int, b: int):
+            return round(a / b, 2)
+        self.__history_df['mean_price'] = self.__history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
+
         return self.__history_df
 
     def load_info(self) -> DataFrame:
@@ -98,8 +104,11 @@ class ShareData:
     def get_info(self) -> DataFrame:
         return self.__info_df
 
+    def get_current_num_shares(self) -> int:
+        return self.get_info()['ISSUESIZE'].values[0]
+
     def get_current_deviation(self) -> int:
-        med = self.get_history()['WAPRICE'].median()
+        med = self.get_history()['mean_price'].median()
         res: int = round(self.get_current_price() / med * 100 - 50)
         return res
 
