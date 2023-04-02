@@ -34,7 +34,7 @@ J - Пай биржевого ПИФа (Exchange Investment Unit share)
 class ShareData:
     def __init__(self, ticker: str):
         self.__ticker: str = ticker.upper()
-        self.__info_df: DataFrame = self.load_info()
+        self.__info_df: DataFrame = DataFrame()
         self.__history_df: DataFrame = DataFrame()
 
     def load_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
@@ -72,9 +72,10 @@ class ShareData:
         
         # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
         def divide(a: int, b: int):
+            if b == 0:
+                b = 1
             return round(a / b, 2)
         self.__history_df['mean_price'] = self.__history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
-
         return self.__history_df
 
     def load_info(self) -> DataFrame:
@@ -116,7 +117,7 @@ class ShareData:
         return self.get_info()['LAST'].values[0]
 
     def get_current_market_cap(self) -> float:
-        return self.get_info()['ISSUECAPITALIZATION'].values[0]
+        return round(self.get_info()['ISSUECAPITALIZATION'].values[0])
 
     @staticmethod
     def load_all_info() -> DataFrame:
