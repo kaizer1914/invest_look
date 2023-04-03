@@ -16,8 +16,11 @@ print(f"Текущая капитализация: {share.get_current_market_cap
 
 alrosa = Alrosa()
 for year in range(2017, 2022):
-    print(f"year={year}, revenue={alrosa.get_revenue_per_share(year)}, ebitda={alrosa.get_ebitda_per_share(year)}, "
-          f"fcf={alrosa.get_fcf_per_share(year)}, price={alrosa.get_median_price(year)}")
+    print(f"year={year}, revenue={alrosa.get_revenue_per_share(year)}, "
+          f"ebitda={alrosa.get_ebitda_per_share(year)}, "
+          f"fcf={alrosa.get_fcf_per_share(year)}, "
+          f"net debt/ebitda={alrosa.get_net_debt_ebitda(year)}, "
+          f"price={alrosa.get_price(year, 0.25)}, {alrosa.get_price(year)}, {alrosa.get_price(year, 0.75)}")
 
 if input("Любая клавиша для выхода"):
     exit(0)
