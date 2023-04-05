@@ -8,6 +8,7 @@ class Alrosa:
         self.__num_shares: DataFrame = pandas.read_csv("data/" + self.__ticker + "/num_shares.csv")
         self.__cf: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin/cf.csv")
         self.__debt: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin/debt.csv")
+        self.__sales_country: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin/sales_country.csv")
 
         self.__oper_res: DataFrame = pandas.read_csv("data/" + self.__ticker + "/oper/oper_res.csv")
         self.__oper_res_mining: DataFrame = pandas.read_csv("data/" + self.__ticker + "/oper/oper_res_by_type_of_mining.csv")
@@ -67,3 +68,6 @@ class Alrosa:
         for i in range(len(oper)):
             oper[i] = int(oper[i])
         return oper
+
+    def get_sales_country(self) -> DataFrame:
+        return self.__sales_country
