@@ -9,6 +9,9 @@ class Alrosa:
         self.__cf: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin/cf.csv")
         self.__debt: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin/debt.csv")
 
+        self.__oper_res: DataFrame = pandas.read_csv("data/" + self.__ticker + "/oper/oper_res.csv")
+        self.__oper_res_mining: DataFrame = pandas.read_csv("data/" + self.__ticker + "/oper/oper_res_by_type_of_mining.csv")
+
     def get_num_shares(self, year: int) -> int:
         num_shares: DataFrame = self.__num_shares[self.__num_shares['year'] == year]
         count_shares: int = num_shares['number'].values[0]
@@ -52,7 +55,15 @@ class Alrosa:
         return round(self.get_net_debt(year) / self.get_ebitda(year), 2)
 
     def get_fin_years(self) -> list[int]:
-        pass
+        fin: list[int] = self.__debt.columns.to_list() # искомая строка по значению 1 столбца
+        fin.pop(0)
+        for i in range(len(fin)):
+            fin[i] = int(fin[i])
+        return fin
 
     def get_oper_years(self) -> list[int]:
-        pass
+        oper: list[int] = self.__oper_res.columns.to_list() # искомая строка по значению 1 столбца
+        oper.pop(0)
+        for i in range(len(oper)):
+            oper[i] = int(oper[i])
+        return oper
