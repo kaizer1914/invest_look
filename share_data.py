@@ -66,7 +66,7 @@ class ShareData:
         # Преобразуем полученный датафрейм
         self.__history_df = self.__history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW',
                                                'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
-        self.__history_df = self.__history_df.astype({'TRADEDATE': 'datetime64'})
+        # self.__history_df = self.__history_df.astype({'TRADEDATE': 'datetime64'})
         # self.__history_df.fillna(0, inplace=True)
         # self.__history_df.reset_index(drop=True, inplace=True)
         
