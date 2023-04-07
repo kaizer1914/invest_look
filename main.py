@@ -35,11 +35,14 @@ def main():
     ticker: str = input("Биржевой тикер: ")
 
     share = ShareData(ticker)
-    share.load_info()
-    share.load_history(input_begin_date(), input_end_date())
-
-    print(f"Текущая цена: {share.get_current_price()}, {share.get_current_deviation()}%")
-    print(f"Текущая капитализация: {share.get_current_market_cap()}")
+    try:
+        share.load_info()
+        share.load_history(input_begin_date(), input_end_date())
+        
+        print(f"Текущая цена: {share.get_current_price()}, {share.get_current_deviation()}%")
+        print(f"Текущая капитализация: {share.get_current_market_cap()}")
+    except Exception:
+        print("Ошибка")
 
     if input("Любая клавиша для выхода"):
         exit(0)
