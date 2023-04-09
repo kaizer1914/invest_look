@@ -8,6 +8,7 @@ class MTS:
         self.__num_shares: DataFrame = pandas.read_csv("data/" + self.__ticker + "/num_shares.csv")
         self.__cf: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin.csv")
         self.__debt: DataFrame = pandas.read_csv("data/" + self.__ticker + "/debt.csv")
+        self.__sales_type: DataFrame = pandas.read_csv("data/" + self.__ticker + "/sales_type.csv")
 
     def get_num_shares(self, year: int) -> int:
         num_shares: DataFrame = self.__num_shares[self.__num_shares['year'] == year]
@@ -60,3 +61,6 @@ class MTS:
 
     def get_net_debt_per_share(self, year: int) -> int:
         return round(self.get_net_debt(year) * 1e+3 / self.get_num_shares(year), 2)
+
+    def get_sales_type(self) -> DataFrame:
+        return self.__sales_type
