@@ -5,6 +5,7 @@ from share_data import ShareData
 class Rostelekom:
     def __init__(self) -> None:
         self.__ticker: str = "rtkm"
+        self.__ticker_pref: str = self.__ticker + 'p'
         self.__num_shares: DataFrame = pandas.read_csv("data/" + self.__ticker + "/num_shares.csv")
         self.__cf: DataFrame = pandas.read_csv("data/" + self.__ticker + "/fin.csv")
 
@@ -34,12 +35,12 @@ class Rostelekom:
         return oibda
 
     def get_capex(self, year: int) -> int:
-        cf: DataFrame = self.__cf[self.__cf['cf'] == "oibda"] # искомая строка по значению 1 столбца
+        cf: DataFrame = self.__cf[self.__cf['cf'] == "capex"] # искомая строка по значению 1 столбца
         oibda: int = cf[str(year)].values[0] # в этой строке ограничивает столбцом с заданным годом
         return oibda
 
     def get_net_debt(self, year: int) -> int:
-        cf: DataFrame = self.__cf[self.__cf['cf'] == "capex"] # искомая строка по значению 1 столбца
+        cf: DataFrame = self.__cf[self.__cf['cf'] == "net debt"] # искомая строка по значению 1 столбца
         capex: int = cf[str(year)].values[0] # в этой строке ограничивает столбцом с заданным годом
         return capex
 
@@ -48,6 +49,11 @@ class Rostelekom:
 
     def get_price(self, year: int, quant: float=0.5) -> int:
         share: ShareData = ShareData(self.__ticker)
+        share.load_history(str(year) + '-01-01', str(year) + '-12-31')
+        return round(share.get_history()['mean_price'].quantile(quant), 2)
+
+    def get_price_pref(self, year: int, quant: float=0.5) -> int:
+        share: ShareData = ShareData(self.__ticker_pref)
         share.load_history(str(year) + '-01-01', str(year) + '-12-31')
         return round(share.get_history()['mean_price'].quantile(quant), 2)
 
