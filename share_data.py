@@ -1,5 +1,6 @@
 import pandas
 from pandas import DataFrame
+import sqlite3
 
 '''
 https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off - список российских акций
@@ -35,12 +36,15 @@ class ShareData:
     def __init__(self, ticker: str):
         self.__ticker: str = ticker.upper()
         self.__info_df: DataFrame = DataFrame()
-        self.__history_df: DataFrame = DataFrame()
 
-    def load_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
+    def __load_history(self, begin_date: str = None, end_date: str = None):
         start, end = '', ''
-        self.__history_df = DataFrame()
+        history_df = DataFrame()
         page: int = 0
+        
+        # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
+        def divide(a: int, b: int):
+            return round(a / b, 2)
 
         if begin_date is not None:
             start = f'&from={begin_date}'
@@ -58,25 +62,53 @@ class ShareData:
             else:
                 page += 100
 
-            if self.__history_df.empty:
-                self.__history_df = response_df
+            if history_df.empty:
+                history_df = response_df
             else:
-                self.__history_df = pandas.concat([self.__history_df, response_df])
+                history_df = pandas.concat([history_df, response_df])
 
         # Преобразуем полученный датафрейм
-        self.__history_df = self.__history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW',
-                                               'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
-        # self.__history_df = self.__history_df.astype({'TRADEDATE': 'datetime64'})
-        # self.__history_df.fillna(0, inplace=True)
-        # self.__history_df.reset_index(drop=True, inplace=True)
-        
+        # Оставляем только нужные колонки
+        history_df = history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW', 'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
+        history_df = history_df.astype({'TRADEDATE': 'datetime64'}) # Дату из строки в божеский вид        
+        history_df = history_df[history_df['NUMTRADES'] > 0] # Удаляем дни с нулевым числом заявок за день
         # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
-        def divide(a: int, b: int):
-            if b == 0:
-                b = 1
-            return round(a / b, 2)
-        self.__history_df['mean_price'] = self.__history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
-        return self.__history_df
+        history_df['mean_price'] = history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
+        self.__save_history(history_df) # Сохраняем в БД
+
+    def __save_history(self, history: DataFrame):
+        with sqlite3.connect("history.db") as con:
+            history.to_sql("price", con, if_exists='append', index=False)
+
+    def __restore_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
+        request: str = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}' AND TRADEDATE <= '{end_date}';"
+        if begin_date is None:
+            request = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE <= '{end_date}';"
+        elif end_date is None:
+            request = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}';"
+        history: DataFrame = DataFrame()
+        with sqlite3.connect("history.db") as con:
+            history = pandas.read_sql(request, con)
+        return history
+
+    def __get_max_date(self) -> str:
+        max_date: str = None
+        request: str = f"SELECT MAX(TRADEDATE) FROM price WHERE SECID = '{self.__ticker}';"
+        with sqlite3.connect("history.db") as con:
+            try:
+                max_date = pandas.read_sql(request, con).values[0][0]
+                max_date = max_date[:10]
+            except:
+                max_date = None
+        return max_date
+
+    # грузит данные из базы и дозагружает с сайти московской биржи
+    def get_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
+        try:
+            self.__load_history(self.__get_max_date())
+        except:
+            print("Новые данные не загружены")
+        return self.__restore_history(begin_date, end_date)
 
     def load_info(self) -> DataFrame:
         url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.__ticker}' \
@@ -98,9 +130,6 @@ class ShareData:
                                          'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
                                          'ISSUECAPITALIZATION']]
         return self.__info_df
-
-    def get_history(self) -> DataFrame:
-        return self.__history_df
 
     def get_info(self) -> DataFrame:
         return self.__info_df
