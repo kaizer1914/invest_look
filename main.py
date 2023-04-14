@@ -37,7 +37,7 @@ def main():
     share = ShareData(ticker)
     try:
         share.load_info()
-        share.load_history(input_begin_date(), input_end_date())
+        share.get_history(input_begin_date(), input_end_date())
         
         print(f"Текущая цена: {share.get_current_price()}, {share.get_current_deviation()}%")
         print(f"Текущая капитализация: {share.get_current_market_cap()}")

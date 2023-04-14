@@ -1,6 +1,7 @@
 import pandas
 from pandas import DataFrame
 import sqlite3
+from datetime import datetime, timedelta
 
 '''
 https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off - список российских акций
@@ -91,21 +92,21 @@ class ShareData:
             history = pandas.read_sql(request, con)
         return history
 
-    def __get_max_date(self) -> str:
-        max_date: str = None
+    def __get_next_date(self) -> str:
+        next_date: str = None
         request: str = f"SELECT MAX(TRADEDATE) FROM price WHERE SECID = '{self.__ticker}';"
         with sqlite3.connect("history.db") as con:
             try:
-                max_date = pandas.read_sql(request, con).values[0][0]
-                max_date = max_date[:10]
+                max_date: datetime = datetime(pandas.read_sql(request, con).values[0][0])
+                next_date = (max_date + timedelta(day=1)).strftime("%y-%m-%d")
             except:
-                max_date = None
-        return max_date
+                next_date = None
+        return next_date
 
     # грузит данные из базы и дозагружает с сайти московской биржи (по последней дате)
     def get_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
         try:
-            self.__load_history(self.__get_max_date())
+            self.__load_history(begin_date=self.__get_next_date())
         except:
             print("Новые данные не загружены")
         return self.__restore_history(begin_date, end_date)
