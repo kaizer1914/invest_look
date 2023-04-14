@@ -49,13 +49,11 @@ class Rostelekom:
 
     def get_price(self, year: int, quant: float=0.5) -> int:
         share: ShareData = ShareData(self.__ticker)
-        share.load_history(str(year) + '-01-01', str(year) + '-12-31')
-        return round(share.get_history()['mean_price'].quantile(quant), 2)
+        return round(share.get_history(str(year) + '-01-01', str(year) + '-12-31')['mean_price'].quantile(quant), 2)
 
     def get_price_pref(self, year: int, quant: float=0.5) -> int:
         share: ShareData = ShareData(self.__ticker_pref)
-        share.load_history(str(year) + '-01-01', str(year) + '-12-31')
-        return round(share.get_history()['mean_price'].quantile(quant), 2)
+        return round(share.get_history(str(year) + '-01-01', str(year) + '-12-31')['mean_price'].quantile(quant), 2)
 
     def get_years(self) -> list[int]:
         fin: list[int] = self.__cf.columns.to_list() # искомая строка по значению 1 столбца

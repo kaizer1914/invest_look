@@ -35,8 +35,7 @@ class Alrosa:
 
     def get_price(self, year: int, quant: float=0.5) -> int:
         share: ShareData = ShareData(self.__ticker)
-        share.load_history(str(year) + '-01-01', str(year) + '-12-31')
-        return round(share.get_history()['mean_price'].quantile(quant), 2)
+        return round(share.get_history(str(year) + '-01-01', str(year) + '-12-31')['mean_price'].quantile(quant), 2)
 
     def get_net_debt(self, year: int) -> int:
         debt: DataFrame = self.__debt[self.__debt['Debt'] == "Net debt"] # искомая строка по значению 1 столбца

@@ -102,7 +102,7 @@ class ShareData:
                 max_date = None
         return max_date
 
-    # грузит данные из базы и дозагружает с сайти московской биржи
+    # грузит данные из базы и дозагружает с сайти московской биржи (по последней дате)
     def get_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
         try:
             self.__load_history(self.__get_max_date())
