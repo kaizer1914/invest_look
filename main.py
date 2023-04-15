@@ -36,12 +36,12 @@ def main():
 
     share = ShareData(ticker)
     try:
-        share.load_info()
-        share.get_history(input_begin_date(), input_end_date())
+        info = share.load_info()
+        # history = share.get_history(input_begin_date(), input_end_date())
         
-        print(f"Текущая цена: {share.get_current_price()}, {share.get_current_deviation()}%")
-        print(f"Текущая капитализация: {share.get_current_market_cap()}")
-    except Exception:
+        print(f"Текущая цена: {share.get_current_price(info)}, {share.get_current_deviation(input_begin_date(), input_end_date())}%")
+        print(f"Текущая капитализация: {share.get_current_market_cap(info)}")
+    except:
         print("Ошибка")
 
     if input("Любая клавиша для выхода"):

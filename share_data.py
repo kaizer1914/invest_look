@@ -54,7 +54,7 @@ class ShareData:
 
         while True:
             url = f'https://iss.moex.com/iss/history/engines/stock/markets/shares/boards/TQBR/securities/' \
-                  f'{self.__ticker}.json?iss.meta=off&start={page}{start}{end}'
+                  f'{self.__ticker}.json?iss.meta=off&start={page}{start}{end}&numtrades=1'
             response_df = pandas.read_json(url)
             history = response_df['history']
             response_df = DataFrame(data=history.data, columns=history.columns)
@@ -72,30 +72,30 @@ class ShareData:
         # Оставляем только нужные колонки
         history_df = history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW', 'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
         history_df = history_df.astype({'TRADEDATE': 'datetime64'}) # Дату из строки в божеский вид        
-        history_df = history_df[history_df['NUMTRADES'] > 0] # Удаляем дни с нулевым числом заявок за день
+        # history_df = history_df[history_df['NUMTRADES'] > 0] # Удаляем дни с нулевым числом заявок за день
         # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
         history_df['mean_price'] = history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
         self.__save_history(history_df) # Сохраняем в БД
 
     def __save_history(self, history: DataFrame):
-        with sqlite3.connect("history.db") as con:
-            history.to_sql("price", con, if_exists='append', index=False)
+        with sqlite3.connect("stock.db") as con:
+            history.to_sql("history_share", con, if_exists='append', index=False)
 
     def __restore_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
-        request: str = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}' AND TRADEDATE <= '{end_date}';"
+        request: str = f"SELECT * FROM history_share WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}' AND TRADEDATE <= '{end_date}';"
         if begin_date is None:
-            request = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE <= '{end_date}';"
+            request = f"SELECT * FROM history_share WHERE SECID = '{self.__ticker}' AND TRADEDATE <= '{end_date}';"
         elif end_date is None:
-            request = f"SELECT * FROM price WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}';"
+            request = f"SELECT * FROM history_share WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}';"
         history: DataFrame = DataFrame()
-        with sqlite3.connect("history.db") as con:
+        with sqlite3.connect("stock.db") as con:
             history = pandas.read_sql(request, con)
         return history
 
     def __get_next_date(self) -> str:
         next_date: str = None
-        request: str = f"SELECT MAX(TRADEDATE) FROM price WHERE SECID = '{self.__ticker}';"
-        with sqlite3.connect("history.db") as con:
+        request: str = f"SELECT MAX(TRADEDATE) FROM history_share WHERE SECID = '{self.__ticker}';"
+        with sqlite3.connect("stock.db") as con:
             try:
                 max_date: datetime = datetime(pandas.read_sql(request, con).values[0][0])
                 next_date = (max_date + timedelta(day=1)).strftime("%y-%m-%d")
@@ -122,36 +122,51 @@ class ShareData:
         securities_df = DataFrame(data=securities_df.data, columns=securities_df.columns)
         marketdata_df = DataFrame(data=marketdata_df.data, columns=marketdata_df.columns)
 
-        self.__info_df = securities_df.merge(marketdata_df)
+        info_df = securities_df.merge(marketdata_df)
 
         # Преобразуем полученный датафрейм
-        self.__info_df = self.__info_df[['SECID', 'SHORTNAME', 'LOTSIZE', 'FACEVALUE', 'DECIMALS', 'SECNAME', 'MINSTEP',
+        info_df = info_df[['SECID', 'SHORTNAME', 'LOTSIZE', 'FACEVALUE', 'DECIMALS', 'SECNAME', 'MINSTEP',
                                          'FACEUNIT', 'ISSUESIZE', 'ISIN', 'CURRENCYID', 'LISTLEVEL', 'OPEN', 'LOW',
                                          'HIGH', 'LAST', 'WAPRICE', 'NUMTRADES', 'VOLTODAY', 'VALTODAY', 'VALTODAY_RUR',
                                          'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
                                          'ISSUECAPITALIZATION']]
-        return self.__info_df
+        return info_df
 
     def get_info(self) -> DataFrame:
-        return self.__info_df
+        request = f"SELECT * FROM info_share WHERE SECID = '{self.__ticker}';"
+        info: DataFrame = DataFrame()
+        with sqlite3.connect("stock.db") as con:
+            info = pandas.read_sql(request, con)
+        return info
 
-    def get_current_num_shares(self) -> int:
-        return self.get_info()['ISSUESIZE'].values[0]
+    def get_current_num_shares(self, fresh_info: DataFrame=None) -> int:
+        if fresh_info is None:
+            return self.get_info()['ISSUESIZE'].values[0]
+        else:
+            return self.load_info()['ISSUESIZE'].values[0]
 
-    def get_current_deviation(self) -> int:
-        med = self.get_history()['mean_price'].median()
+    def get_current_deviation(self, begin_date: str = None, end_date: str = None) -> int:
+        med = self.get_history(begin_date, end_date)['mean_price'].median()
         res: int = round(self.get_current_price() / med * 100 - 50)
         return res
 
-    def get_current_price(self) -> float:
-        return self.get_info()['LAST'].values[0]
+    def get_current_price(self, fresh_info: DataFrame=None) -> float:
+        if fresh_info is None:
+            return self.get_info()['LAST'].values[0]
+        else:
+            return self.load_info()['LAST'].values[0]
 
-    def get_current_market_cap(self) -> float:
-        return round(self.get_info()['ISSUECAPITALIZATION'].values[0])
+    def get_current_market_cap(self, fresh_info: DataFrame=None) -> float:
+        if fresh_info is None:
+            return round(self.get_info()['ISSUECAPITALIZATION'].values[0])
+        else:
+            return round(self.load_info()['ISSUECAPITALIZATION'].values[0])
 
     @staticmethod
-    def load_all_info() -> DataFrame:
-        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off'
+    def update_all_info():
+        # MOEXBMI - Индекс акций широкого рынка
+        # Индексная "вселенная" TOP-100 наиболее ликвидных и капитализированных акций из 250
+        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&index=MOEXBMI&sort_column=VALTODAY&sort_order=des'
         response_df = pandas.read_json(url)
 
         securities_df = response_df['securities']
@@ -161,4 +176,20 @@ class ShareData:
         marketdata_df = DataFrame(data=marketdata_df.data, columns=marketdata_df.columns)
 
         all_info_df = securities_df.merge(marketdata_df)
-        return all_info_df
+        all_info_df = all_info_df[['SECID', 'SHORTNAME', 'LOTSIZE', 'FACEVALUE', 'DECIMALS', 'SECNAME', 'MINSTEP',
+                                         'FACEUNIT', 'ISSUESIZE', 'ISIN', 'CURRENCYID', 'LISTLEVEL', 'OPEN', 'LOW',
+                                         'HIGH', 'LAST', 'WAPRICE', 'NUMTRADES', 'VOLTODAY', 'VALTODAY', 'VALTODAY_RUR',
+                                         'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
+                                         'ISSUECAPITALIZATION']]
+        with sqlite3.connect("stock.db") as con:
+            all_info_df.to_sql("info_share", con, if_exists='replace', index=False)
+
+    @staticmethod
+    def get_all_tickers() -> list[str]:
+        request = f"SELECT SECID FROM info_share;"
+        tickers: list[str] = list()
+        with sqlite3.connect("stock.db") as con:
+            result = pandas.read_sql(request, con)
+            for val in result.values:
+                tickers.append(val[0])
+        return tickers
