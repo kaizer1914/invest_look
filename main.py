@@ -32,11 +32,16 @@ def input_end_date() -> str:
     return end_date.strftime("%Y-%m-%d")
 
 def main():
-    ticker: str = input("Биржевой тикер: ")
-    share = ShareData(ticker)
-    info = share.load_info()
+    ShareData.update_all_info()
+    tickers: list[str] = ShareData.get_all_tickers()
 
-    print(f"Текущая цена: {share.get_current_price(info)}, {share.get_current_deviation(input_begin_date(), input_end_date(), info)}%")
+    begin_date = input_begin_date()
+    end_date = input_end_date()
+
+    for ticker in tickers:
+        share = ShareData(ticker)
+        print(f"{ticker}: {share.get_current_price()}, {share.get_current_deviation(begin_date, end_date)}%")
+    
     if input("Любая клавиша для выхода"):
         exit(0)
 

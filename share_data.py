@@ -75,7 +75,7 @@ class ShareData:
                     history_df = pandas.concat([history_df, response_df])
             except URLError:
                 print(f"Сервер устал {self.__ticker}")
-                sleep(60)
+                sleep(30)
 
         if not history_df.empty:
             # Преобразуем полученный датафрейм
@@ -126,7 +126,7 @@ class ShareData:
             print(f"Скачиваем всю историю котировок {self.__ticker}")
         else:
             self.__load_history(begin_date=next_date)
-            print(f"Обновлены данные {self.__ticker} с {next_date}")
+            # print(f"Обновлены данные {self.__ticker} с {next_date}")
         return self.__restore_history(begin_date, end_date)
 
     def load_info(self) -> DataFrame:
@@ -206,7 +206,7 @@ class ShareData:
 
     @staticmethod
     def get_all_tickers() -> list[str]:
-        request = f"SELECT SECID FROM info_share WHERE FACEUNIT = 'SUR';"
+        request = f"SELECT SECID FROM info_share;"
         tickers: list[str] = list()
         with sqlite3.connect("stock.db") as con:
             result = pandas.read_sql(request, con)
