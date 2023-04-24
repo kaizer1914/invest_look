@@ -33,17 +33,10 @@ def input_end_date() -> str:
 
 def main():
     ticker: str = input("Биржевой тикер: ")
-
     share = ShareData(ticker)
-    try:
-        info = share.load_info()
-        # history = share.get_history(input_begin_date(), input_end_date())
-        
-        print(f"Текущая цена: {share.get_current_price(info)}, {share.get_current_deviation(input_begin_date(), input_end_date())}%")
-        print(f"Текущая капитализация: {share.get_current_market_cap(info)}")
-    except:
-        print("Ошибка")
+    info = share.load_info()
 
+    print(f"Текущая цена: {share.get_current_price(info)}, {share.get_current_deviation(input_begin_date(), input_end_date(), info)}%")
     if input("Любая клавиша для выхода"):
         exit(0)
 

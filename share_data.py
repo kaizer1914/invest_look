@@ -1,7 +1,9 @@
 import pandas
 from pandas import DataFrame
 import sqlite3
+from time import sleep
 from datetime import datetime, timedelta
+from urllib.error import URLError
 
 '''
 https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off - список российских акций
@@ -36,7 +38,9 @@ J - Пай биржевого ПИФа (Exchange Investment Unit share)
 class ShareData:
     def __init__(self, ticker: str):
         self.__ticker: str = ticker.upper()
-        self.__info_df: DataFrame = DataFrame()
+
+    def get_ticker(self) -> str:
+        return self.__ticker
 
     def __load_history(self, begin_date: str = None, end_date: str = None):
         start, end = '', ''
@@ -44,8 +48,8 @@ class ShareData:
         page: int = 0
         
         # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
-        def divide(a: int, b: int):
-            return round(a / b, 2)
+        def divide(a: int, b: int) -> float:
+            return a / b
 
         if begin_date is not None:
             start = f'&from={begin_date}'
@@ -54,32 +58,35 @@ class ShareData:
 
         while True:
             url = f'https://iss.moex.com/iss/history/engines/stock/markets/shares/boards/TQBR/securities/' \
-                  f'{self.__ticker}.json?iss.meta=off&start={page}{start}{end}&numtrades=1'
-            response_df = pandas.read_json(url)
-            history = response_df['history']
-            response_df = DataFrame(data=history.data, columns=history.columns)
-            if response_df.empty:
-                break
-            else:
-                page += 100
+                f'{self.__ticker}.json?iss.meta=off&start={page}{start}{end}&numtrades=1'
+            try:
+                response_df = pandas.read_json(url)
+                history = response_df['history']
+                response_df = DataFrame(data=history.data, columns=history.columns)
+                
+                if response_df.empty:
+                    break
+                else:
+                    page += 100
 
-            if history_df.empty:
-                history_df = response_df
-            else:
-                history_df = pandas.concat([history_df, response_df])
+                if history_df.empty:
+                    history_df = response_df
+                else:
+                    history_df = pandas.concat([history_df, response_df])
+            except URLError:
+                print(f"Сервер устал {self.__ticker}")
+                sleep(60)
 
-        # Преобразуем полученный датафрейм
-        # Оставляем только нужные колонки
-        history_df = history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW', 'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
-        history_df = history_df.astype({'TRADEDATE': 'datetime64'}) # Дату из строки в божеский вид        
-        # history_df = history_df[history_df['NUMTRADES'] > 0] # Удаляем дни с нулевым числом заявок за день
-        # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
-        history_df['mean_price'] = history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
-        self.__save_history(history_df) # Сохраняем в БД
-
-    def __save_history(self, history: DataFrame):
-        with sqlite3.connect("stock.db") as con:
-            history.to_sql("history_share", con, if_exists='append', index=False)
+        if not history_df.empty:
+            # Преобразуем полученный датафрейм
+            # Оставляем только нужные колонки
+            history_df = history_df[['TRADEDATE', 'SHORTNAME', 'SECID', 'NUMTRADES', 'VALUE', 'OPEN', 'LOW', 'HIGH', 'WAPRICE', 'CLOSE', 'VOLUME']]
+            history_df = history_df.astype({'TRADEDATE': 'datetime64'}) # Дату из строки в божеский вид        
+            # history_df = history_df[history_df['NUMTRADES'] > 0] # Удаляем дни с нулевым числом заявок за день
+            # Находим отличную от waprice среднюю цену (только сессии торгов на бирже, а не общую)
+            history_df['mean_price'] = history_df.apply(lambda x: divide(x['VALUE'], x['VOLUME']), axis=1)
+            with sqlite3.connect("stock.db") as con:
+                history_df.to_sql("history_share", con, if_exists='append', index=False)
 
     def __restore_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
         request: str = f"SELECT * FROM history_share WHERE SECID = '{self.__ticker}' AND TRADEDATE >= '{begin_date}' AND TRADEDATE <= '{end_date}';"
@@ -93,22 +100,33 @@ class ShareData:
         return history
 
     def __get_next_date(self) -> str:
-        next_date: str = None
+        next_date: datetime = None
         request: str = f"SELECT MAX(TRADEDATE) FROM history_share WHERE SECID = '{self.__ticker}';"
+        response: str = None
         with sqlite3.connect("stock.db") as con:
             try:
-                max_date: datetime = datetime(pandas.read_sql(request, con).values[0][0])
-                next_date = (max_date + timedelta(day=1)).strftime("%y-%m-%d")
+                response = pandas.read_sql(request, con).values[0][0]
             except:
-                next_date = None
-        return next_date
+                response = None
+
+            if response is not None:
+                next_date: datetime = datetime.strptime(response, "%Y-%m-%d %H:%M:%S")
+                next_date += timedelta(days=1)
+
+        if response is None:
+            return next_date
+        else:
+            return next_date.strftime("%Y-%m-%d")
 
     # грузит данные из базы и дозагружает с сайти московской биржи (по последней дате)
     def get_history(self, begin_date: str = None, end_date: str = None) -> DataFrame:
-        try:
-            self.__load_history(begin_date=self.__get_next_date())
-        except:
-            print("Новые данные не загружены")
+        next_date: str = self.__get_next_date()
+        if next_date is None:
+            self.__load_history()
+            print(f"Скачиваем всю историю котировок {self.__ticker}")
+        else:
+            self.__load_history(begin_date=next_date)
+            print(f"Обновлены данные {self.__ticker} с {next_date}")
         return self.__restore_history(begin_date, end_date)
 
     def load_info(self) -> DataFrame:
@@ -145,9 +163,9 @@ class ShareData:
         else:
             return self.load_info()['ISSUESIZE'].values[0]
 
-    def get_current_deviation(self, begin_date: str = None, end_date: str = None) -> int:
+    def get_current_deviation(self, begin_date: str = None, end_date: str = None, fresh_info: DataFrame=None) -> float:
         med = self.get_history(begin_date, end_date)['mean_price'].median()
-        res: int = round(self.get_current_price() / med * 100 - 50)
+        res: float = round(self.get_current_price(fresh_info) / med * 100 - 50, 2)
         return res
 
     def get_current_price(self, fresh_info: DataFrame=None) -> float:
@@ -164,9 +182,11 @@ class ShareData:
 
     @staticmethod
     def update_all_info():
-        # MOEXBMI - Индекс акций широкого рынка
-        # Индексная "вселенная" TOP-100 наиболее ликвидных и капитализированных акций из 250
-        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&index=MOEXBMI&sort_column=VALTODAY&sort_order=des'
+        # Total - 250
+        # MOEXBMI - TOP-100
+        # IMOEX - TOP-40
+        index: str = 'MOEXBMI'
+        url = f'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&index={index}&sort_column=VALTODAY&sort_order=des'
         response_df = pandas.read_json(url)
 
         securities_df = response_df['securities']
@@ -177,16 +197,16 @@ class ShareData:
 
         all_info_df = securities_df.merge(marketdata_df)
         all_info_df = all_info_df[['SECID', 'SHORTNAME', 'LOTSIZE', 'FACEVALUE', 'DECIMALS', 'SECNAME', 'MINSTEP',
-                                         'FACEUNIT', 'ISSUESIZE', 'ISIN', 'CURRENCYID', 'LISTLEVEL', 'OPEN', 'LOW',
-                                         'HIGH', 'LAST', 'WAPRICE', 'NUMTRADES', 'VOLTODAY', 'VALTODAY', 'VALTODAY_RUR',
-                                         'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
-                                         'ISSUECAPITALIZATION']]
+                                   'FACEUNIT', 'ISSUESIZE', 'ISIN', 'CURRENCYID', 'LISTLEVEL', 'OPEN', 'LOW',
+                                   'HIGH', 'LAST', 'WAPRICE', 'NUMTRADES', 'VOLTODAY', 'VALTODAY', 'VALTODAY_RUR',
+                                   'VALTODAY_USD', 'NUMBIDS', 'NUMOFFERS', 'HIGHBID', 'LOWOFFER',
+                                   'ISSUECAPITALIZATION']]
         with sqlite3.connect("stock.db") as con:
             all_info_df.to_sql("info_share", con, if_exists='replace', index=False)
 
     @staticmethod
     def get_all_tickers() -> list[str]:
-        request = f"SELECT SECID FROM info_share;"
+        request = f"SELECT SECID FROM info_share WHERE FACEUNIT = 'SUR';"
         tickers: list[str] = list()
         with sqlite3.connect("stock.db") as con:
             result = pandas.read_sql(request, con)
