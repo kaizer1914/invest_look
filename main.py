@@ -40,7 +40,9 @@ def main():
 
     for ticker in tickers:
         share = ShareData(ticker)
-        print(f"{ticker}: {share.get_current_price()}, {share.get_current_deviation(begin_date, end_date)}%")
+        price = share.get_current_price()
+        deviation = share.get_current_deviation(begin_date, end_date)
+        print(f"{ticker}: {price}, {deviation}%")
     
     if input("Любая клавиша для выхода"):
         exit(0)

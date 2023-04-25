@@ -73,3 +73,6 @@ class Alrosa:
 
     def get_net_debt_per_share(self, year: int) -> float:
         return round(self.get_net_debt(year) / self.get_num_shares(year) * 1e6, 2)
+
+    def get_ev_ebitda(self, year: int) -> float:
+        return round((self.get_net_debt(year) + self.get_num_shares(year) * self.get_price(year)) / self.get_ebitda(year) / 1e6, 2)

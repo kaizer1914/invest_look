@@ -63,3 +63,6 @@ class MTS:
 
     def get_sales_type(self) -> DataFrame:
         return self.__sales_type
+
+    def get_ev_oibda(self, year: int) -> float:
+        return round((self.get_net_debt(year) + self.get_num_shares(year) * self.get_price(year)) / self.get_oibda(year) / 1e3, 2)
